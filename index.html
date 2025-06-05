@@ -2,94 +2,92 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Macloreina NFT Mint</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to right, #f8f9fa, #e9ecef);
+      text-align: center;
+      padding: 40px;
+    }
+    h1 {
+      color: #343a40;
+      margin-bottom: 20px;
+    }
+    input {
+      padding: 10px;
+      width: 60%;
+      margin-bottom: 20px;
+      border-radius: 5px;
+      border: 1px solid #ced4da;
+    }
+    button {
+      padding: 12px 30px;
+      font-size: 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    #result {
+      margin-top: 30px;
+      font-size: 18px;
+      color: #212529;
+    }
+  </style>
 </head>
 <body>
-  <h1>🃏 Mint Your NFT</h1>
-  <p>Enter your IPFS CID (e.g. <code>bafybeiev2y...</code>):</p>
-  <input type="text" id="imageURI" placeholder="Enter IPFS CID here" style="width: 300px;" />
-  <br/><br/>
-  <button onclick="mintCard()">Mint NFT (0.001 ETH)</button>
-  <br/><br/>
-  <pre id="status">Not minted yet.</pre>
+  <h1>Macloreina NFT Minting DApp</h1>
+  <input id="imageUri" placeholder="Enter image URI (ipfs://...)" />
+  <br />
+  <button onclick="mintNFT()">Mint NFT (0.001 ETH)</button>
+  <div id="result"></div>
 
-  <!-- 引入 ethers.js 库 -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.6.2/dist/ethers.min.js"></script>
   <script>
-    const CONTRACT_ADDRESS = "0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99"; // 替换为你自己的合约地址
-
-    // 替换为你自己的 ABI（下面这个是我为你写的标准 mintCard(string) 版本）
-    const CONTRACT_ABI = [
-      {
-        "inputs": [
-          {
-            "internalType": "string",
-            "name": "imageURI",
-            "type": "string"
-          }
-        ],
-        "name": "mintCard",
-        "outputs": [],
-        "stateMutability": "payable",
-        "type": "function"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "from",
-            "type": "address"
-          },
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "to",
-            "type": "address"
-          },
-          {
-            "indexed": true,
-            "internalType": "uint256",
-            "name": "tokenId",
-            "type": "uint256"
-          }
-        ],
-        "name": "Transfer",
-        "type": "event"
-      }
+    const contractAddress = "0x425D376c753b33c8FAeB9d59b60ca80370D29bff";
+    const abi = [
+      "function mintCard(string memory _tokenURI) public payable",
+      "function tokenURI(uint256 tokenId) public view returns (string memory)",
+      "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
     ];
 
-    async function mintCard() {
-      const imageCID = document.getElementById("imageURI").value.trim();
-      const imageURI = "ipfs://" + imageCID;
-
+    async function mintNFT() {
       if (!window.ethereum) {
-        alert("Please install MetaMask first.");
+        alert("Please install MetaMask to use this feature.");
         return;
       }
 
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      const uri = document.getElementById("imageUri").value;
+      if (!uri.startsWith("ipfs://")) {
+        alert("Please enter a valid ipfs:// URI");
+        return;
+      }
+
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const signer = provider.getSigner();
+      const contract = new ethers.Contract(contractAddress, abi, signer);
 
       try {
-        document.getElementById("status").innerText = "⏳ Sending transaction...";
-        const tx = await contract.mintCard(imageURI, {
-          value: ethers.parseEther("0.001")
-        });
-
+        const tx = await contract.mintCard(uri, { value: ethers.utils.parseEther("0.001") });
+        document.getElementById("result").innerText = "Minting... Waiting for confirmation...";
         const receipt = await tx.wait();
-        const tokenId = receipt.logs[0].args[2].toString();
 
-        const explorer = `https://sepolia.etherscan.io/tx/${tx.hash}`;
+        const transferEvent = receipt.events.find(e => e.event === "Transfer");
+        const tokenId = transferEvent.args[2].toString();
 
-        document.getElementById("status").innerText =
-          `✅ Minted Successfully!\n\n🆔 Token ID: ${tokenId}\n📦 Transaction: ${explorer}\n🖼️ Image: ${imageURI}`;
-      } catch (error) {
-        console.error(error);
-        document.getElementById("status").innerText = `❌ Mint failed: ${error.message}`;
+        document.getElementById("result").innerHTML = `✅ Minted successfully!<br>
+          <strong>Token ID:</strong> ${tokenId}<br>
+          <strong>NFT Address:</strong> ${contractAddress}<br>
+          <strong>URI:</strong> ${uri}`;
+      } catch (err) {
+        console.error(err);
+        document.getElementById("result").innerText = "❌ Error occurred: " + (err.reason || err.message);
       }
     }
   </script>
