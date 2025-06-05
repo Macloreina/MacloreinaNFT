@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Macloreina NFT Mint</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+    #container {
+      background: white;
+      padding: 20px;
+      max-width: 500px;
+      margin: auto;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 1em;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <h2>Mint your Macloreina NFT</h2>
+    <input type="text" id="imageURI" placeholder="Enter IPFS image URI (e.g. ipfs://...)" />
+    <button onclick="mintNFT()">Mint NFT (0.001 ETH)</button>
+    <p id="status"></p>
+  </div>
+
+  <script>
+    const contractAddress = "0x9D7f74d0C41E726EC95884E0e97Fa6129e3b5E99";
+    const abi = [
+      "function mintCard(string memory _imageURI) public payable"
+    ];
+
+    async function mintNFT() {
+      if (!window.ethereum) {
+        document.getElementById("status").innerText = "Please install MetaMask";
+        return;
+      }
+
+      try {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        const signer = provider.getSigner();
+        const contract = new ethers.Contract(contractAddress, abi, signer);
+        const uri = document.getElementById("imageURI").value;
+
+        const tx = await contract.mintCard(uri, { value: ethers.utils.parseEther("0.001") });
+        document.getElementById("status").innerText = "Transaction sent... waiting for confirmation";
+        await tx.wait();
+        document.getElementById("status").innerText = "🎉 NFT Minted Successfully!";
+      } catch (err) {
+        document.getElementById("status").innerText = `Error: ${err.message}`;
+      }
+    }
+  </script>
+</body>
+</html>
