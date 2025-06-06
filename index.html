@@ -49,47 +49,58 @@
   <button onclick="mintNFT()">Mint NFT (0.001 ETH)</button>
   <div id="result"></div>
 
-  <script>
-    const contractAddress = "0x425D376c753b33c8FAeB9d59b60ca80370D29bff";
-    const abi = [
-      "function mintCard(string memory _tokenURI) public payable",
-      "function tokenURI(uint256 tokenId) public view returns (string memory)",
-      "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
-    ];
+<script>
+  const contractAddress = "0x425D376c753b33c8FAeB9d59b60ca80370D29bff";
+  const sepoliaChainId = "0xaa36a7"; // Sepolia chain ID in hex
+  const abi = [
+    "function mintCard(string memory _tokenURI) public payable",
+    "function tokenURI(uint256 tokenId) public view returns (string memory)",
+    "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)"
+  ];
 
-    async function mintNFT() {
-      if (!window.ethereum) {
-        alert("Please install MetaMask to use this feature.");
-        return;
-      }
+  async function mintNFT() {
+    if (!window.ethereum) {
+      alert("请安装 MetaMask 扩展插件！");
+      return;
+    }
 
-      const uri = document.getElementById("imageUri").value;
-      if (!uri.startsWith("ipfs://")) {
-        alert("Please enter a valid ipfs:// URI");
-        return;
-      }
-
+    try {
+      // 连接钱包
       const provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const network = await provider.getNetwork();
+
+      // 检查是否连接的是 Sepolia 网络
+      if (network.chainId !== 11155111) { // Dec = 11155111 = 0xaa36a7
+        alert("请将 MetaMask 网络切换到 Sepolia 测试网");
+        return;
+      }
+
+      const uri = document.getElementById("imageUri").value.trim();
+      if (!uri.startsWith("ipfs://")) {
+        alert("请输入以 ipfs:// 开头的图片 URI");
+        return;
+      }
+
       const signer = provider.getSigner();
       const contract = new ethers.Contract(contractAddress, abi, signer);
 
-      try {
-        const tx = await contract.mintCard(uri, { value: ethers.utils.parseEther("0.001") });
-        document.getElementById("result").innerText = "Minting... Waiting for confirmation...";
-        const receipt = await tx.wait();
+      const tx = await contract.mintCard(uri, { value: ethers.utils.parseEther("0.001") });
+      document.getElementById("result").innerText = "Minting... 等待确认交易...";
+      const receipt = await tx.wait();
 
-        const transferEvent = receipt.events.find(e => e.event === "Transfer");
-        const tokenId = transferEvent.args[2].toString();
+      const transferEvent = receipt.events.find(e => e.event === "Transfer");
+      const tokenId = transferEvent.args[2].toString();
 
-        document.getElementById("result").innerHTML = `✅ Minted successfully!<br>
-          <strong>Token ID:</strong> ${tokenId}<br>
-          <strong>NFT Address:</strong> ${contractAddress}<br>
-          <strong>URI:</strong> ${uri}`;
-      } catch (err) {
-        console.error(err);
-        document.getElementById("result").innerText = "❌ Error occurred: " + (err.reason || err.message);
-      }
+      document.getElementById("result").innerHTML = `✅ Mint 成功！<br>
+        <strong>Token ID:</strong> ${tokenId}<br>
+        <strong>合约地址:</strong> ${contractAddress}<br>
+        <strong>URI:</strong> ${uri}`;
+    } catch (err) {
+      console.error("Mint Error:", err);
+      document.getElementById("result").innerText =
+        "❌ 出错了：" + (err.reason || err.message || "未知错误");
     }
-  </script>
-</body>
-</html>
+  }
+</script>
+
